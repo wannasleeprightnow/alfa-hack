@@ -1,0 +1,39 @@
+[project]
+name = "alfa-hack-backend"
+version = "0.1.0"
+description = "FastAPI backend for the Alfa Hack project"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "dishka>=1.10,<2.0",
+    "fastapi[standard]>=0.115,<1.0",
+    "pydantic-settings>=2.7,<3.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1.0",
+    "pytest>=8.3,<9.0",
+    "ruff>=0.9,<1.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27,<2.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]
+
+[tool.fastapi]
+entrypoint = "app.main.app:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,0 +1,12 @@
+services:
+  backend:
+    environment:
+      APP_ENV: production
+
+  frontend:
+    build:
+      target: runtime
+
+  nginx:
+    environment:
+      NGINX_MODE: production

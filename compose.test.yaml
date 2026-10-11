@@ -1,0 +1,17 @@
+services:
+  backend:
+    build:
+      target: runtime
+    environment:
+      APP_ENV: test
+
+  frontend:
+    build:
+      target: runtime
+
+  nginx:
+    environment:
+      NGINX_MODE: test
+    ports: !override ["8081:80"]
+    volumes: !reset []
+    restart: "no"

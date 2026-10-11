@@ -1,0 +1,42 @@
+services:
+  backend:
+    build:
+      target: development
+    environment:
+      APP_ENV: development
+    volumes:
+      - ./backend/src:/app/src:ro
+    command: ["uv", "run", "uvicorn", "app.main.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    build:
+      target: development
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    expose: !override ["5173"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  nginx:
+    environment:
+      NGINX_MODE: development
+    ports: !override ["8080:80"]
+    volumes: !reset []
+
+volumes:
+  frontend_node_modules:
