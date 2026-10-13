@@ -17,4 +17,5 @@ class Settings(BaseSettings):
 
     @property
     def expose_api_docs(self) -> bool:
+        """Return whether interactive API documentation is enabled."""
         return self.app_env != "production"

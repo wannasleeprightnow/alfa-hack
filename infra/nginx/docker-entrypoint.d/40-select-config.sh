@@ -3,7 +3,7 @@ set -eu
 
 mode="${NGINX_MODE:-production}"
 case "$mode" in
-  development|test)
+  development|staging|test)
     config="$mode.conf"
     ;;
   production)

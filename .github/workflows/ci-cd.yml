@@ -1,0 +1,178 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  backend-quality:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --locked --group dev
+      - name: Check backend lint and formatting
+        working-directory: backend
+        run: |
+          uv run --group dev ruff check .
+          uv run --group dev ruff format --check .
+      - name: Test backend
+        working-directory: backend
+        run: uv run --group dev pytest
+
+  frontend-quality:
+    name: Frontend quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Check frontend quality
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm test -- --run
+          npm run build
+# actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+  images:
+    name: Publish runtime images
+    if: github.event_name == 'push'
+    needs: [backend-quality, frontend-quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          target: runtime
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}/alfa-hack-backend:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          target: runtime
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}/alfa-hack-frontend:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/nginx
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}/alfa-hack-nginx:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
+
+  deploy-staging:
+    name: Deploy staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: images
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false
+    env:
+      VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure trusted SSH access
+        shell: bash
+        run: |
+          set -eu
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$VPS_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*[$]?$ ]]
+          [[ "$VPS_DEPLOY_PATH" =~ ^/[a-zA-Z0-9._/-]+$ && "$VPS_DEPLOY_PATH" != *".."* ]]
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/staging"
+          chmod 600 "$HOME/.ssh/staging"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          cat > "$HOME/.ssh/config" <<EOF
+          Host staging-vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            IdentityFile $HOME/.ssh/staging
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 "$HOME/.ssh/config"
+      - name: Copy Compose deployment configuration
+        shell: bash
+        run: |
+          set -eu
+          test -n "$VPS_DEPLOY_PATH"
+          scp compose.yaml compose.images.yaml compose.staging.yaml "staging-vps:$VPS_DEPLOY_PATH/"
+      - name: Pull, start, and check staging services
+        shell: bash
+        run: |
+          set -eu
+          ssh staging-vps /bin/sh -s -- "$VPS_DEPLOY_PATH" "$IMAGE_PREFIX" "$GITHUB_SHA" <<'EOF'
+          set -eu
+          deploy_path=$1
+          image_prefix=$2
+          image_tag=$3
+          cd "$deploy_path"
+          test "$(cat .deployment-mode)" = "staging"
+          export IMAGE_PREFIX="$image_prefix" IMAGE_TAG="$image_tag"
+          production_containers="$(docker compose --env-file .env -f compose.yaml -f compose.images.yaml -f compose.prod.yaml ps -q)"
+          if test -n "$production_containers"; then
+            echo 'Production is running; refusing staging deployment' >&2
+            exit 1
+          fi
+          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml pull
+          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml up --detach --remove-orphans --wait
+          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml \
+            exec -T nginx wget -q -O /dev/null http://127.0.0.1/api/health
+          printf '%s\n' "$image_tag" > .staging-image-tag
+          EOF

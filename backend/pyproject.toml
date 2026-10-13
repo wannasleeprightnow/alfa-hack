@@ -36,4 +36,14 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["ALL"]
+ignore = [
+    "COM812", # Conflicts with the formatter.
+    "CPY001", # Copyright policy belongs to project legal documentation.
+    "D203", # Conflicts with the formatter; D211 requires no blank line.
+    "D212", # Use D213: summary starts on the second line for multiline docstrings.
+    "ISC001", # Conflicts with the formatter.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
