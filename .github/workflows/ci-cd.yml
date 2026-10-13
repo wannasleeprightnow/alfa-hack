@@ -13,6 +13,16 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
 
 jobs:
+  deployment-quality:
+    name: Deployment script checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check deployment script syntax and behavior
+        run: |
+          sh -n infra/deploy/develop-production.sh
+          sh infra/deploy/test-develop-production.sh
+
   backend-quality:
     name: Backend quality
     runs-on: ubuntu-latest
@@ -61,7 +71,7 @@ jobs:
   images:
     name: Publish runtime images
     if: github.event_name == 'push'
-    needs: [backend-quality, frontend-quality]
+    needs: [backend-quality, frontend-quality, deployment-quality]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,13 +120,15 @@ jobs:
           cache-from: type=gha,scope=nginx
           cache-to: type=gha,mode=max,scope=nginx
 
-  deploy-staging:
-    name: Deploy staging
+  deploy-production:
+    name: Deploy 418.buzz
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     needs: images
     runs-on: ubuntu-latest
+    # Keep the existing environment's verified SSH secrets during the migration.
     environment: staging
     concurrency:
+      # Serialize with the previous staging workflow during the first rollout.
       group: staging-deploy
       cancel-in-progress: false
     env:
@@ -153,26 +165,16 @@ jobs:
           set -eu
           test -n "$VPS_DEPLOY_PATH"
           scp compose.yaml compose.images.yaml compose.staging.yaml compose.prod.yaml "staging-vps:$VPS_DEPLOY_PATH/"
-      - name: Pull, start, and check staging services
+      - name: Pull, start, and check production services
         shell: bash
         run: |
           set -eu
-          ssh staging-vps /bin/sh -s -- "$VPS_DEPLOY_PATH" "$IMAGE_PREFIX" "$GITHUB_SHA" <<'EOF'
+          ssh staging-vps /bin/sh -s -- "$VPS_DEPLOY_PATH" "$IMAGE_PREFIX" "$GITHUB_SHA" < infra/deploy/develop-production.sh
+      - name: Verify public HTTPS endpoints
+        shell: bash
+        run: |
           set -eu
-          deploy_path=$1
-          image_prefix=$2
-          image_tag=$3
-          cd "$deploy_path"
-          test "$(cat .deployment-mode)" = "staging"
-          export IMAGE_PREFIX="$image_prefix" IMAGE_TAG="$image_tag"
-          production_containers="$(docker compose --env-file .env -f compose.yaml -f compose.images.yaml -f compose.prod.yaml ps -q)"
-          if test -n "$production_containers"; then
-            echo 'Production is running; refusing staging deployment' >&2
-            exit 1
-          fi
-          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml pull
-          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml up --detach --remove-orphans --wait
-          docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml \
-            exec -T nginx wget -q -O /dev/null http://127.0.0.1/api/health
-          printf '%s\n' "$image_tag" > .staging-image-tag
-          EOF
+          for endpoint in / /api/health; do
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 20 \
+              --retry 3 --retry-delay 2 --retry-connrefused "https://418.buzz$endpoint" -o /dev/null
+          done
