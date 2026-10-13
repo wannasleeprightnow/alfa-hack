@@ -1,30 +1,54 @@
-import { useState } from 'react'
+import '@fontsource-variable/inter-tight/wght.css'
+import '@fontsource/ibm-plex-mono/latin-400.css'
 
-import reactLogo from './assets/react.svg'
-
-export function App() {
-  const [count, setCount] = useState(0)
-
+function Digits({ className }: { className: string }) {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank" rel="noreferrer">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
+    <span className={className} aria-hidden="true">
+      <span className="digit digit-four">4</span>
+      <span className="digit digit-one">1</span>
+      <span className="digit digit-eight">8</span>
+    </span>
+  )
+}
+export function App() {
+  return (
+    <main id="top" className="hero" aria-labelledby="hero-title">
+      <header className="header">
+        <a className="wordmark" href="#top" aria-label="418 home">
+          418<sup>®</sup>
         </a>
-        <a href="https://react.dev" target="_blank" rel="noreferrer">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <p className="mono header-caption">
+          INDEPENDENT HACKATHON TEAM <span>/ 2026</span>
+        </p>
+      </header>
+      <div className="hero-art">
+        <h1 id="hero-title" className="hero-title" aria-label="418 is going to rob a bank.">
+          <span className="number-mask">
+            <span className="number-layer">
+              <Digits className="number-echo" />
+              <Digits className="number-front" />
+            </span>
+          </span>
+          <span className="slogan">
+            <span aria-hidden="true">
+              IS GOING TO
+              <br />
+              <span className="slogan-line">
+                <strong>ROB</strong> A BANK.
+              </span>
+            </span>
+            <span className="slogan-star" aria-hidden="true">
+              ↗
+            </span>
+          </span>
+        </h1>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((currentCount) => currentCount + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+      <div className="hero-bottom mono">
+        <p className="tagline">
+          <span className="red-square" aria-hidden="true" />
+          NO GUNS. JUST CODE.
         </p>
       </div>
-      <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
-    </>
+    </main>
   )
 }

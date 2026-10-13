@@ -1,19 +1,12 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
-
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { App } from './App'
-
-describe('App', () => {
-  it('renders the Vite starter and its working counter', async () => {
-    const user = userEvent.setup()
+afterEach(cleanup)
+describe('418 poster', () => {
+  it('shows one screen with the slogan', () => {
     render(<App />)
-
-    expect(screen.getByRole('heading', { name: 'Vite + React' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'count is 0' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'count is 0' }))
-
-    expect(screen.getByRole('button', { name: 'count is 1' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '418 is going to rob a bank.' })).toBeInTheDocument()
+    expect(screen.queryByText(/scroll to explore/i)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 })
