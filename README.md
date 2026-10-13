@@ -44,7 +44,7 @@ Compose files provide separate configurations:
 - Tests: `make test` (isolated test configuration; HTTP)
 - Production: `make prod` (HTTP-to-HTTPS redirect and TLS; configure a domain first)
 
-Production requires a DNS name pointing to the host and inbound ports 80 and 443. Set `CERTBOT_DOMAIN` and `LETSENCRYPT_EMAIL` in `.env`, then follow the [TLS setup](#production-tls-with-lets-encrypt) instructions. Never commit `.env` or private keys.
+Production is configured for `418.buzz`: the frontend is served at `https://418.buzz/` and the API at `https://418.buzz/api/`. DNS for `418.buzz` must point to the production host, with inbound ports 80 and 443 reachable. Set `CERTBOT_DOMAIN=418.buzz` and a monitored `LETSENCRYPT_EMAIL` in `.env`, then follow the [TLS setup](#production-tls-with-lets-encrypt) instructions. Never commit `.env` or private keys.
 
 ## CI/CD and VPS deployments
 
@@ -114,8 +114,8 @@ workflow and Make targets refuse to start one while the other is running.
 
 ## Production TLS with Let's Encrypt
 
-1. Set `CERTBOT_DOMAIN` to the registered DNS name and `LETSENCRYPT_EMAIL` to a monitored email address in `.env`.
-2. Ensure the DNS A/AAAA records point to this host and ports 80/443 are reachable from the internet.
+1. Set `CERTBOT_DOMAIN=418.buzz` and set `LETSENCRYPT_EMAIL` to a monitored email address in `.env`.
+2. Ensure the DNS A/AAAA records for `418.buzz` point to this production host and ports 80/443 are reachable from the internet.
 3. Run `make prod-cert-init`. This starts the production stack with a temporary HTTP-only Nginx configuration, obtains the certificate using the HTTP-01 webroot challenge, and restarts Nginx with HTTPS enabled.
 4. Start or update a locally built production stack with `make prod`, or use `make prod-images IMAGE_TAG=<main-full-sha>` on the VPS to run the verified GHCR images.
 5. Schedule `make prod-cert-renew` (for example, daily via a host cron job). It renews eligible certificates and reloads Nginx.
