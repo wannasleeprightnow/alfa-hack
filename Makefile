@@ -4,14 +4,20 @@ BASE = -f compose.yaml
 DEV = $(BASE) -f compose.dev.yaml
 TEST = $(BASE) -f compose.test.yaml
 PROD = $(BASE) -f compose.prod.yaml
+IMAGES = $(BASE) -f compose.images.yaml
+STAGING_IMAGES = $(IMAGES) -f compose.staging.yaml
+PROD_IMAGES = $(IMAGES) -f compose.prod.yaml
+STAGING_PROJECT = -p alfa-hack-staging
+IMAGE_PREFIX ?= ghcr.io/wannasleeprightnow
+IMAGE_TAG ?=
 
-.PHONY: help setup dev dev-down logs logs-test logs-prod test test-backend test-frontend prod prod-down prod-cert-init prod-cert-renew backend-test frontend-test frontend-build lint
+.PHONY: help setup dev dev-down logs logs-test logs-prod test test-backend test-frontend prod prod-images prod-down prod-cert-init prod-cert-renew staging-images check-image-tag check-staging-mode check-production-mode backend-test frontend-test frontend-build backend-lint frontend-lint backend-quality frontend-quality format-check lint
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "%-22s %s\n", $$1, $$2}'
 
 setup: ## Create local environment file from the example
-	@test -f .env || cp .env.example .envhttp://localhost/
+	@test -f .env || cp .env.example .env
 
 dev: setup ## Run the development stack (HTTP)
 	$(COMPOSE) $(ENV_FILE) $(DEV) up --build
@@ -47,8 +53,26 @@ frontend-build: ## Build frontend production assets
 	cd frontend && npm ci && npm run build
 
 lint: ## Run backend and frontend linters
+	$(MAKE) backend-lint
+	$(MAKE) frontend-lint
+
+backend-lint: ## Run the backend linter
 	cd backend && uv run --group dev ruff check .
+
+frontend-lint: ## Run the frontend linter
 	cd frontend && npm ci && npm run lint
+
+format-check: ## Check backend and frontend formatting
+	cd backend && uv run --group dev ruff format --check .
+	cd frontend && npm ci && npm run format:check
+
+backend-quality: ## Run backend linting, formatting, and tests
+	cd backend && uv run --group dev ruff check .
+	cd backend && uv run --group dev ruff format --check .
+	cd backend && uv run --group dev pytest
+
+frontend-quality: ## Run frontend formatting, linting, type checks, tests, and build
+	cd frontend && npm ci && npm run format:check && npm run lint && npm run typecheck && npm test -- --run && npm run build
 
 prod: setup ## Run the production stack (requires domain and certificate)
 	@domain="$$($(COMPOSE) $(ENV_FILE) $(PROD) config --environment | sed -n 's/^CERTBOT_DOMAIN=//p')"; \
@@ -57,6 +81,30 @@ prod: setup ## Run the production stack (requires domain and certificate)
 	 test -s "letsencrypt/live/$$domain/privkey.pem" || \
 	 (echo 'Configure CERTBOT_DOMAIN and run make prod-cert-init first' >&2; exit 1)
 	$(COMPOSE) $(ENV_FILE) $(PROD) up --build -d
+
+check-image-tag:
+	@printf '%s\n' "$(IMAGE_TAG)" | grep -Eq '^[0-9a-f]{40}$$' || (echo 'Set IMAGE_TAG to a 40-character lowercase commit SHA' >&2; exit 1)
+
+check-staging-mode:
+	@test "$$(cat .deployment-mode 2>/dev/null)" = "staging" || (echo 'Set .deployment-mode to staging before deploying staging' >&2; exit 1)
+
+check-production-mode:
+	@test "$$(cat .deployment-mode 2>/dev/null)" = "production" || (echo 'Set .deployment-mode to production before deploying production' >&2; exit 1)
+
+staging-images: setup check-image-tag check-staging-mode ## Run staging from published GHCR images
+	@containers="$$($(COMPOSE) $(ENV_FILE) $(PROD_IMAGES) ps -q)" || exit 1; test -z "$$containers" || (echo 'Stop production before deploying staging' >&2; exit 1)
+	IMAGE_PREFIX="$(IMAGE_PREFIX)" IMAGE_TAG="$(IMAGE_TAG)" $(COMPOSE) $(STAGING_PROJECT) $(ENV_FILE) $(STAGING_IMAGES) up --pull always -d --remove-orphans --wait
+	@printf '%s\n' "$(IMAGE_TAG)" > .staging-image-tag
+
+prod-images: setup check-image-tag check-production-mode ## Run production from published GHCR images
+	@containers="$$($(COMPOSE) $(STAGING_PROJECT) $(ENV_FILE) $(STAGING_IMAGES) ps -q)" || exit 1; test -z "$$containers" || (echo 'Stop staging before deploying production' >&2; exit 1)
+	@domain="$$(IMAGE_PREFIX="$(IMAGE_PREFIX)" IMAGE_TAG="$(IMAGE_TAG)" $(COMPOSE) $(ENV_FILE) $(PROD_IMAGES) config --environment | sed -n 's/^CERTBOT_DOMAIN=//p')"; \
+	 test -n "$$domain" && test "$$domain" != "example.com" && \
+	 test -s "letsencrypt/live/$$domain/fullchain.pem" && \
+	 test -s "letsencrypt/live/$$domain/privkey.pem" || \
+	 (echo 'Configure CERTBOT_DOMAIN and run make prod-cert-init first' >&2; exit 1)
+	IMAGE_PREFIX="$(IMAGE_PREFIX)" IMAGE_TAG="$(IMAGE_TAG)" $(COMPOSE) $(ENV_FILE) $(PROD_IMAGES) up --pull always -d --remove-orphans --wait
+	@printf '%s\n' "$(IMAGE_TAG)" > .production-image-tag
 
 prod-down: ## Stop the production stack without deleting certificate data
 	$(COMPOSE) $(ENV_FILE) $(PROD) down

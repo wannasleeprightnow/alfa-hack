@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: !reset null
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}/alfa-hack-backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  frontend:
+    build: !reset null
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}/alfa-hack-frontend:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always
+
+  nginx:
+    build: !reset null
+    image: ${IMAGE_PREFIX:?Set IMAGE_PREFIX}/alfa-hack-nginx:${IMAGE_TAG:?Set IMAGE_TAG}
+    pull_policy: always

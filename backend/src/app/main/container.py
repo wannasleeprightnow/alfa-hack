@@ -9,6 +9,7 @@ class SettingsProvider(Provider):
     """Provide application settings for the lifetime of the application."""
 
     def __init__(self, settings: Settings | None = None) -> None:
+        """Initialize the provider with an optional settings override."""
         super().__init__()
         self._settings = settings
 
