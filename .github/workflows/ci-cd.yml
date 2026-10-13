@@ -152,7 +152,7 @@ jobs:
         run: |
           set -eu
           test -n "$VPS_DEPLOY_PATH"
-          scp compose.yaml compose.images.yaml compose.staging.yaml "staging-vps:$VPS_DEPLOY_PATH/"
+          scp compose.yaml compose.images.yaml compose.staging.yaml compose.prod.yaml "staging-vps:$VPS_DEPLOY_PATH/"
       - name: Pull, start, and check staging services
         shell: bash
         run: |
