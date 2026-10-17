@@ -1,7 +1,9 @@
 """Application composition root and startup."""
 
-from collections.abc import AsyncIterator
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from dishka import make_container
 from dishka.integrations.fastapi import FastapiProvider, setup_dishka
@@ -11,6 +13,9 @@ from app.main.container import SettingsProvider
 from app.main.settings import Settings
 from app.presentation.http.health import router as health_router
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the API application using the selected environment settings."""
@@ -19,7 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     docs_enabled = resolved_settings.expose_api_docs
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         try:
             yield
         finally:
