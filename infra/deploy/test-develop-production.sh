@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+test -f "$script_dir/../../compose.yaml"
+test -f "$script_dir/../compose/compose.images.yaml"
+test -f "$script_dir/../compose/compose.prod.yaml"
+test -f "$script_dir/../compose/compose.staging.yaml"
 test_root=$(mktemp -d)
 trap 'rm -rf "$test_root"' EXIT HUP INT TERM
 mkdir -p "$test_root/bin"
@@ -56,6 +60,8 @@ run_deploy
 test "$(cat "$case_dir/.deployment-mode")" = production
 test "$(cat "$case_dir/.production-image-tag")" = "$sha"
 test "$(grep -c '^curl ' "$DEPLOY_TEST_LOG")" -eq 2
+grep -q -- '-f infra/compose/compose.images.yaml -f infra/compose/compose.prod.yaml' "$DEPLOY_TEST_LOG"
+grep -q -- '-p alfa-hack-staging --env-file .env -f compose.yaml -f infra/compose/compose.images.yaml -f infra/compose/compose.staging.yaml down' "$DEPLOY_TEST_LOG"
 pull_line=$(grep -n ' pull$' "$DEPLOY_TEST_LOG" | cut -d: -f1)
 down_line=$(grep -n ' down$' "$DEPLOY_TEST_LOG" | cut -d: -f1)
 up_line=$(grep -n ' up ' "$DEPLOY_TEST_LOG" | cut -d: -f1)

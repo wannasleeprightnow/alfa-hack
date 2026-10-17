@@ -38,7 +38,8 @@ npm run dev
 
 ## Environments
 
-Compose files provide separate configurations:
+The base Compose configuration is `compose.yaml`; environment-specific overrides are grouped in
+`infra/compose/`. Make targets provide the supported entry points:
 
 - Development: `make dev` (HTTP, source reload, API docs enabled)
 - Tests: `make test` (isolated test configuration; HTTP)
@@ -91,8 +92,9 @@ images but never connects to the VPS. Integrate feature PRs with **Rebase and me
    host key during an Actions run.
 
 The GitHub environment is still named `staging` to reuse the existing SSH secrets; the job
-deploys production. It copies the four Compose files and streams the checked deployment script
-over SSH. It never copies `.env`, certificates, GHCR credentials, or private keys to the runner.
+deploys production. It copies the base Compose file, the overrides under `infra/compose/`, and
+the Makefile, then streams the checked deployment script over SSH. It never copies `.env`,
+certificates, GHCR credentials, or private keys to the runner.
 Each deployment checks the frontend and `/api/health` over HTTPS on the VPS, then checks both
 public URLs from the runner. The successful image SHA is recorded in `.production-image-tag`.
 Deployment jobs are serialized; the existing `staging-deploy` concurrency group is retained
@@ -110,7 +112,7 @@ cd /opt/alfa-hack
 printf 'production\n' > .deployment-mode
 DEPLOY_SHA='replace-with-the-40-character-develop-commit-sha'
 IMAGE_PREFIX=ghcr.io/wannasleeprightnow IMAGE_TAG="$DEPLOY_SHA" \
-  docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml down
+  docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f infra/compose/compose.images.yaml -f infra/compose/compose.staging.yaml down
 IMAGE_PREFIX=ghcr.io/wannasleeprightnow IMAGE_TAG="$DEPLOY_SHA" make prod-images
 curl --fail https://<domain>/api/health
 ```
@@ -119,7 +121,7 @@ Record the previous SHA before updating. To roll back, repeat the `make prod-ima
 with that SHA. Automatic rollback is not performed if startup or HTTPS validation fails;
 inspect container logs and restore the previous image SHA manually. To return the host to staging,
 pause automatic deployments first, then stop production with
-`IMAGE_PREFIX=ghcr.io/wannasleeprightnow IMAGE_TAG="$(cat .production-image-tag)" docker compose --env-file .env -f compose.yaml -f compose.images.yaml -f compose.prod.yaml down`,
+`IMAGE_PREFIX=ghcr.io/wannasleeprightnow IMAGE_TAG="$(cat .production-image-tag)" docker compose --env-file .env -f compose.yaml -f infra/compose/compose.images.yaml -f infra/compose/compose.prod.yaml down`,
 set `.deployment-mode` back to `staging`, and run
 `make staging-images` with the SHA from the last successful `develop` workflow. Never run staging
 and production simultaneously. Compose keeps the two stacks in separate projects, and the
