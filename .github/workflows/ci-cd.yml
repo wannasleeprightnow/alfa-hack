@@ -164,7 +164,9 @@ jobs:
         run: |
           set -eu
           test -n "$VPS_DEPLOY_PATH"
-          scp compose.yaml compose.images.yaml compose.staging.yaml compose.prod.yaml "staging-vps:$VPS_DEPLOY_PATH/"
+          ssh staging-vps "mkdir -p '$VPS_DEPLOY_PATH/infra/compose'"
+          scp compose.yaml Makefile "staging-vps:$VPS_DEPLOY_PATH/"
+          scp infra/compose/*.yaml "staging-vps:$VPS_DEPLOY_PATH/infra/compose/"
       - name: Pull, start, and check production services
         shell: bash
         run: |

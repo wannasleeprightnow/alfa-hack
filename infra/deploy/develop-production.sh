@@ -13,10 +13,10 @@ case "$mode" in staging|production) ;; *) echo 'Unknown deployment mode' >&2; ex
 command -v curl >/dev/null
 
 production() {
-  docker compose --env-file .env -f compose.yaml -f compose.images.yaml -f compose.prod.yaml "$@"
+  docker compose --env-file .env -f compose.yaml -f infra/compose/compose.images.yaml -f infra/compose/compose.prod.yaml "$@"
 }
 staging() {
-  docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f compose.images.yaml -f compose.staging.yaml "$@"
+  docker compose -p alfa-hack-staging --env-file .env -f compose.yaml -f infra/compose/compose.images.yaml -f infra/compose/compose.staging.yaml "$@"
 }
 
 # Validate TLS and download every image before stopping the old staging stack.

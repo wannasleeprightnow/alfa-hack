@@ -1,12 +1,12 @@
 COMPOSE = docker compose
 ENV_FILE = --env-file .env
 BASE = -f compose.yaml
-DEV = $(BASE) -f compose.dev.yaml
-TEST = $(BASE) -f compose.test.yaml
-PROD = $(BASE) -f compose.prod.yaml
-IMAGES = $(BASE) -f compose.images.yaml
-STAGING_IMAGES = $(IMAGES) -f compose.staging.yaml
-PROD_IMAGES = $(IMAGES) -f compose.prod.yaml
+DEV = $(BASE) -f infra/compose/compose.dev.yaml
+TEST = $(BASE) -f infra/compose/compose.test.yaml
+PROD = $(BASE) -f infra/compose/compose.prod.yaml
+IMAGES = $(BASE) -f infra/compose/compose.images.yaml
+STAGING_IMAGES = $(IMAGES) -f infra/compose/compose.staging.yaml
+PROD_IMAGES = $(IMAGES) -f infra/compose/compose.prod.yaml
 STAGING_PROJECT = -p alfa-hack-staging
 IMAGE_PREFIX ?= ghcr.io/wannasleeprightnow
 IMAGE_TAG ?=
@@ -115,7 +115,7 @@ prod-cert-init: setup ## Obtain the initial Let's Encrypt certificate and enable
 	 test -n "$$domain" && test "$$domain" != "example.com" && \
 	 test -n "$$email" && test "$$email" != "admin@example.com" || \
 	 (echo 'Set a real CERTBOT_DOMAIN and LETSENCRYPT_EMAIL in .env first' >&2; exit 1)
-	$(COMPOSE) $(ENV_FILE) $(BASE) -f compose.prod.yaml -f compose.prod-bootstrap.yaml up -d backend frontend nginx
+	$(COMPOSE) $(ENV_FILE) $(BASE) -f infra/compose/compose.prod.yaml -f infra/compose/compose.prod-bootstrap.yaml up -d backend frontend nginx
 	$(COMPOSE) $(ENV_FILE) $(PROD) --profile certificates run --rm --no-deps certbot certonly --webroot -w /var/www/certbot --email "$$($(COMPOSE) $(ENV_FILE) $(PROD) config --environment | sed -n 's/^LETSENCRYPT_EMAIL=//p')" -d "$$($(COMPOSE) $(ENV_FILE) $(PROD) config --environment | sed -n 's/^CERTBOT_DOMAIN=//p')" --agree-tos --no-eff-email
 	$(COMPOSE) $(ENV_FILE) $(PROD) up -d --force-recreate nginx
 
