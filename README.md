@@ -44,7 +44,7 @@ Compose files provide separate configurations:
 - Tests: `make test` (isolated test configuration; HTTP)
 - Production: `make prod` (HTTP-to-HTTPS redirect and TLS; configure a domain first)
 
-Production is configured for `418.buzz`: the frontend is served at `https://418.buzz/` and the API at `https://418.buzz/api/`. DNS for `418.buzz` must point to the production host, with inbound ports 80 and 443 reachable. Set `CERTBOT_DOMAIN=418.buzz` and a monitored `LETSENCRYPT_EMAIL` in `.env`, then follow the [TLS setup](#production-tls-with-lets-encrypt) instructions. Never commit `.env` or private keys.
+Production is configured for `418.live`: the frontend is served at `https://418.live/` and the API at `https://418.live/api/`. DNS for `418.live` must point to the production host, with inbound ports 80 and 443 reachable. Set `CERTBOT_DOMAIN=418.live` and a monitored `LETSENCRYPT_EMAIL` in `.env`, then follow the [TLS setup](#production-tls-with-lets-encrypt) instructions. Never commit `.env` or private keys.
 
 ## CI/CD and VPS deployments
 
@@ -57,7 +57,7 @@ to GitHub Container Registry (GHCR):
 - `ghcr.io/wannasleeprightnow/alfa-hack-nginx:<commit-sha>`
 
 Only `develop` deploys automatically. After quality checks, deployment-script tests, and image
-publication succeed, `Deploy 418.buzz` updates the production stack at `https://418.buzz/`.
+publication succeed, `Deploy 418.live` updates the production stack at `https://418.live/`.
 It runs with `APP_ENV=production`; API documentation is disabled. A push to `main` publishes
 images but never connects to the VPS. Integrate feature PRs with **Rebase and merge** into
 `develop`; promotion to `main` is not required to update the domain.
@@ -79,7 +79,7 @@ images but never connects to the VPS. Integrate feature PRs with **Rebase and me
    ```
 
    Alternatively, intentionally make the three GHCR packages public.
-3. Configure `CERTBOT_DOMAIN=418.buzz` and a real `LETSENCRYPT_EMAIL` in the VPS `.env`,
+3. Configure `CERTBOT_DOMAIN=418.live` and a real `LETSENCRYPT_EMAIL` in the VPS `.env`,
    open ports 80/443, and provision the certificate with `make prod-cert-init` if needed.
    Create `/opt/alfa-hack/.deployment-mode` with the contents `production`. Existing installations
    with mode `staging` are migrated by the first successful deployment: images and certificates
@@ -101,7 +101,7 @@ updates can cause a brief interruption; this is not a zero-downtime deployment.
 
 ### Manual production update and rollback
 
-Choose the full SHA from a successful `develop` image build. Wait for any active `Deploy 418.buzz`
+Choose the full SHA from a successful `develop` image build. Wait for any active `Deploy 418.live`
 job to finish (or cancel it and wait until it has stopped). Then switch the deployment lock and
 stop staging; production owns ports 80 and 443 while it runs:
 
@@ -128,8 +128,8 @@ performs the explicit staging-to-production transition described above.
 
 ## Production TLS with Let's Encrypt
 
-1. Set `CERTBOT_DOMAIN=418.buzz` and set `LETSENCRYPT_EMAIL` to a monitored email address in `.env`.
-2. Ensure the DNS A/AAAA records for `418.buzz` point to this production host and ports 80/443 are reachable from the internet.
+1. Set `CERTBOT_DOMAIN=418.live` and set `LETSENCRYPT_EMAIL` to a monitored email address in `.env`.
+2. Ensure the DNS A/AAAA records for `418.live` point to this production host and ports 80/443 are reachable from the internet.
 3. Run `make prod-cert-init`. This starts the production stack with a temporary HTTP-only Nginx configuration, obtains the certificate using the HTTP-01 webroot challenge, and restarts Nginx with HTTPS enabled.
 4. Start or update a locally built production stack with `make prod`, or use `make prod-images IMAGE_TAG=<develop-full-sha>` on the VPS to run the verified GHCR images. Later `develop` pushes update production automatically.
 5. Schedule `make prod-cert-renew` (for example, daily via a host cron job). It renews eligible certificates and reloads Nginx.
@@ -163,7 +163,7 @@ Use Gitflow branch names and merge direction:
 - `hotfix/<short-name>` branches from `main`, merge into `main` and `develop`
 
 Keep feature branches focused and use pull requests with **Rebase and merge** for integration.
-Currently, successful `develop` pushes deploy to `418.buzz`; `main` remains a release branch.
+Currently, successful `develop` pushes deploy to `418.live`; `main` remains a release branch.
 
 ## Useful commands
 

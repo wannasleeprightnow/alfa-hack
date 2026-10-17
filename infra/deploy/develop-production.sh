@@ -22,7 +22,7 @@ staging() {
 # Validate TLS and download every image before stopping the old staging stack.
 production config --quiet
 domain=$(production config --environment | sed -n 's/^CERTBOT_DOMAIN=//p')
-test "$domain" = '418.buzz' || { echo 'Set CERTBOT_DOMAIN=418.buzz in the VPS .env' >&2; exit 1; }
+test "$domain" = '418.live' || { echo 'Set CERTBOT_DOMAIN=418.live in the VPS .env' >&2; exit 1; }
 test -s "letsencrypt/live/$domain/fullchain.pem" && test -s "letsencrypt/live/$domain/privkey.pem" || {
   echo 'TLS certificate missing; provision it with make prod-cert-init before deployment' >&2
   exit 1

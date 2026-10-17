@@ -121,7 +121,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=nginx
 
   deploy-production:
-    name: Deploy 418.buzz
+    name: Deploy 418.live
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     needs: images
     runs-on: ubuntu-latest
@@ -176,5 +176,5 @@ jobs:
           set -eu
           for endpoint in / /api/health; do
             curl --fail --silent --show-error --connect-timeout 5 --max-time 20 \
-              --retry 3 --retry-delay 2 --retry-connrefused "https://418.buzz$endpoint" -o /dev/null
+              --retry 3 --retry-delay 2 --retry-connrefused "https://418.live$endpoint" -o /dev/null
           done
