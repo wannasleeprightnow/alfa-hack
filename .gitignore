@@ -19,3 +19,4 @@ frontend/coverage/
 certbot/
 letsencrypt/
 .DS_Store
+.vscode/
