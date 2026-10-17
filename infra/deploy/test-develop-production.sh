@@ -8,7 +8,7 @@ cat > "$test_root/bin/docker" <<'MOCK'
 #!/bin/sh
 printf 'docker %s\n' "$*" >> "$DEPLOY_TEST_LOG"
 case "$*" in
-  *'config --environment') printf 'CERTBOT_DOMAIN=418.buzz\n' ;;
+  *'config --environment') printf 'CERTBOT_DOMAIN=418.live\n' ;;
   *' pull') test "${DEPLOY_TEST_PULL_FAIL:-0}" != 1 ;;
 esac
 MOCK
@@ -23,11 +23,11 @@ sha=0123456789012345678901234567890123456789
 
 setup_case() {
   case_dir="$test_root/$1"
-  mkdir -p "$case_dir/letsencrypt/live/418.buzz"
+  mkdir -p "$case_dir/letsencrypt/live/418.live"
   touch "$case_dir/.env"
   printf 'staging\n' > "$case_dir/.deployment-mode"
-  printf 'certificate\n' > "$case_dir/letsencrypt/live/418.buzz/fullchain.pem"
-  printf 'key\n' > "$case_dir/letsencrypt/live/418.buzz/privkey.pem"
+  printf 'certificate\n' > "$case_dir/letsencrypt/live/418.live/fullchain.pem"
+  printf 'key\n' > "$case_dir/letsencrypt/live/418.live/privkey.pem"
   export DEPLOY_TEST_LOG="$case_dir/commands.log"
   : > "$DEPLOY_TEST_LOG"
 }
@@ -36,7 +36,7 @@ run_deploy() {
 }
 
 setup_case missing-certificate
-rm "$case_dir/letsencrypt/live/418.buzz/fullchain.pem"
+rm "$case_dir/letsencrypt/live/418.live/fullchain.pem"
 if run_deploy; then echo 'Missing certificate must fail' >&2; exit 1; fi
 test "$(cat "$case_dir/.deployment-mode")" = staging
 ! grep -qE ' (pull|down|up)( |$)' "$DEPLOY_TEST_LOG"
@@ -60,7 +60,7 @@ pull_line=$(grep -n ' pull$' "$DEPLOY_TEST_LOG" | cut -d: -f1)
 down_line=$(grep -n ' down$' "$DEPLOY_TEST_LOG" | cut -d: -f1)
 up_line=$(grep -n ' up ' "$DEPLOY_TEST_LOG" | cut -d: -f1)
 test "$pull_line" -lt "$down_line" && test "$down_line" -lt "$up_line"
-grep -q -- '--resolve 418.buzz:443:127.0.0.1 https://418.buzz/api/health' "$DEPLOY_TEST_LOG"
+grep -q -- '--resolve 418.live:443:127.0.0.1 https://418.live/api/health' "$DEPLOY_TEST_LOG"
 
 # Later develop pushes update the same production stack.
 run_deploy
